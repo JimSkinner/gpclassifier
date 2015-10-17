@@ -1,0 +1,21 @@
+exportPattern("^[[:alpha:]]+")
+exportMethods(
+    "EP",
+    "fitted",
+    "getCovarFun",
+    "getDLml",
+    "getHP",
+    "getKernel",
+    "getKernelGrad",
+    "getK",
+    "getLml",
+    "initialize",
+    "predict",
+    "setHP<-",
+    "tuneHPs",
+    "update<-"
+)
+exportClasses(
+    "CovarFun",
+    "GPC"
+)
