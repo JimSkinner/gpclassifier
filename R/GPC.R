@@ -2,6 +2,13 @@ source("CovarianceFunction.R")
 source("siteParams.R")
 source("hypParams.R")
 
+## TODO: Keep documented generics here, move (undocumented) methods into a new
+## file.
+
+#' Class GPC.
+#'
+#' Class \code{GPC} defines a Gaussian Process Classifier.
+#' @export
 GPC <- setClass(
   "GPC",
   slots = c(
@@ -31,6 +38,35 @@ GPC <- setClass(
   },
 )
 
+#' Construtor method of GPC class
+#'
+#' Creates a new GPC object used to predict labels for new input data.
+#'
+#' Covariance function hyperparameters are selected automatically through
+#' maximum likelihood. This class is implemented using the Expectation
+#' Propagation approximation detailed in (Gaussian Processes for Machine
+#' Learning, Rasmussen and Williams, 2006).
+#'
+#' @param X Matrix of input data; sample in rows.
+#' @param Y Logical vector of binary labels.
+#' @param covarFun Covariance function to use. Must be of class CovarFun. If
+#'  omitted, the squared exponential covariance function is used by default.
+#'
+#' @return S4 object of class GPC, where covarance function hyperparameters
+#'  have been set to their maximum likelihood estimates.
+#'
+#' @examples
+#' # Create synthetic dataset
+#' X <- matrix(rnorm(60), ncol=2)
+#' Y <- rowSums(X^2) < 1
+#'
+#' # New GPX Object with default squared exponential covariance function.
+#' gpc <- GPC(X, Y)
+#'
+#' # Predict labels for new data
+#' Xst <- matrix(rnorm(60), ncol=2)
+#' Yst <- predict(gpc, Xst)
+#' @export
 setMethod(f          = "initialize",
           signature  = "GPC",
           definition = function(.Object, X, Y, covarFun) {
@@ -49,62 +85,32 @@ setMethod(f          = "initialize",
 ## Methods
 #######################
 
-#setGeneric(name="tuneHPs", def=function(object) standardGeneric("tuneHPs"))
-#setMethod(f         = "tuneHPs",
-#          signature = "GPC",
-#          def       = function(object, theta0) {
-#            objective_function = function(theta) {  # Function to optimise
-#              return(getLml(setHP(object) <- theta))
-#            }
-#            gradient_function = function(theta) {  # Gradient of objective function
-#              return(getDLml(setHP(object) <- theta))
-#            }
-#
-#            optObj = optimx(par     = theta0,
-#                            fn      = objective_function,
-#                            gr      = gradient_function,
-#                            method  = 'CG',
-#                            hessian = FALSE,
-#                            control = list(maximize=TRUE, starttests=FALSE,
-#                                           kkt=FALSE))
-#
-#            setHP(object) <- relist(coef(optObj), theta0)
-#            return(object)
-#          }
-#)
-
-#setGeneric(name="logLik", def=function(object) standardGeneric("logLik"))
-#setMethod(f         = "logLik",
-#          signature = "GPC",
-#          def       = function(object) {
-#            # TODO
-#          }
-#)
-#
-#setGeneric(name="dLogLik", def=function(object) standardGeneric("dLogLik"))
-#setMethod(f         = "dLogLik",
-#          signature = "GPC",
-#          def       = function(object) {
-#            # TODO
-#          }
-#)
-
-# Expectation Propagation to calculate site params and approximate log marginal likelihood
+#' Calculate site parameters, likelihood and likelihood gradient using
+#' Expectation Propagation
+#' @export
 setGeneric(name="EP",
            def=function(object) standardGeneric("EP"))
 setMethod(f         = "EP",
           signature = "GPC",
-          def       = EP.fn)
+          def       = GPC.EP)
 
-setGeneric(name="tuneHPs",
-           def=function(object) standardGeneric("tuneHPs"))
-setMethod(f         = "tuneHPs",
+#' Return maximum likelihood covariance function hyperparameters
+#' @export
+setGeneric(name="hpTune",
+           def=function(object) standardGeneric("hpTune"))
+setMethod(f         = "hpTune",
           signature = "GPC",
-          def       = tuneHPs.fn
-)
+          def       = GPC.hpTune)
 
+#' Update \code{X}, \code{Y} or \code{covarFun}
+#'
+#' Update the data \code{X}, labels \code{Y} or covariance function
+#' \code{covarFun}, causing a recalculation of hyperparameters,
+#' site parameters and covariance matrix.
+#' @export
 setGeneric(name="update<-",
            def=function(object, value) standardGeneric("update<-"))
+
 setReplaceMethod(
   f         = "update",
   signature = c("GPC", "list"),
@@ -132,7 +138,6 @@ setReplaceMethod(
     return(object)
   }
 )
-
 
 setMethod(f         = "predict",
           signature = "GPC",
@@ -182,17 +187,34 @@ setMethod(f="fitted", signature="GPC", def=function(object) predict(.Object))
 #######################
 
 ## Getters
+
+#' Return log marginal likelihood.
+#' @export
 setGeneric(name = "getLml",
            def  = function(object) standardGeneric("getLml"))
+
+#' Return partial derivatives of the log marginal likelihood
+#' with respect to each of the hyperparameters.
+#' @export
 setGeneric(name = "getDLml",
            def  = function(object) standardGeneric("getDLml"))
+
+#' GPC Return the covariance matrix; the matrix of inner products
+#' between each pair of data points in the space induced by the covariance
+#' function.
+#' @export
 setGeneric(name = "getK",
            def  = function(object) standardGeneric("getK"))
+
+#' GPC Return the covariance function (class \code{CovarFun}) used.
+#' @export
 setGeneric(name = "getCovarFun",
            def  = function(object) standardGeneric("getCovarFun"))
+
 #setGeneric(name = "getHP", # Do not need: generic is set in CovarianceFunction
 #           def  = function(object) standardGeneric("getHP"))
 
+## TODO: Move these out to a new file GPC-methods.R
 setMethod(f         = "getLml",
           signature = "GPC",
           def       = function(object) {object@lml}
@@ -219,6 +241,9 @@ setMethod(f         = "getHP",
 )
 
 ## Setters
+
+## TODO: Implement? Maybe not; just have the user construct a new GPC obj
+## since that is what will pretty much happen anyway.
 
 #setGeneric(name = "setData<-",
 #           def  = function(object, value) standardGeneric("setData<-"))
