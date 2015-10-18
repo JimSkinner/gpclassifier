@@ -1,4 +1,4 @@
-EP.fn <- function(object) {
+GPC.EP <- function(object) {
   ## Algorithm 3.5 in Rasmussen
   # Variable naming conventions:
   # Cavity params are suffixed _cav

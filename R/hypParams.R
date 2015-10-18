@@ -1,6 +1,6 @@
 library("optimx")
 
-tuneHPs.fn <- function(object) {
+GPC.hpTune <- function(object) {
 
   ## Information shared between objective and gradient functions
   C = getCovarFun(object)
