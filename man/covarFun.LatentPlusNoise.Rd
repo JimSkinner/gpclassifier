@@ -23,6 +23,6 @@ where 'f' labels the magnitude parameter and kernel for the latent
 function, whilst 'n' labels the magnitude parameter for the noise.
 }
 \examples{
-C = covarFun.LatendPlusNoise(covarFun.SE(0))
+C = covarFun.LatentPlusNoise(covarFun.SE(0))
 }
 

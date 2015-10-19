@@ -1,4 +1,12 @@
-GPC.EP <- function(object) {
+#' Calculate site parameters, likelihood and likelihood gradient using
+#' Expectation Propagation
+#' @export
+setGeneric(name="EP",
+           def=function(object) standardGeneric("EP"))
+
+setMethod(f         = "EP",
+          signature = "GPC",
+          def       = function(object) {
   ## Algorithm 3.5 in Rasmussen
   # Variable naming conventions:
   # Cavity params are suffixed _cav
@@ -119,4 +127,4 @@ GPC.EP <- function(object) {
               nu_loc  = as.numeric(nu_loc),
               lml     = as.numeric(logZ_EPa + logZ_EPb + logZ_EPc + logZ_EPd),
               dlml    = dlml))
-}
+})

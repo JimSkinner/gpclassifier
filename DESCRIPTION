@@ -5,6 +5,7 @@ Version: 1.0
 Date: 2015-10-17
 Author: Jim Skinner
 Maintainer: Jim Skinner <j.r.skinner@warwick.ac.uk>
-Description:
+Description: R implementation of a Gaussian Process Classifier using the Expectation Propagation approximation detailed in (Gaussian Processes for Machine Learning; Rasmussen and Williams, 2006)
 License: MIT
 Depends: methods
+Imports: optimx, memoise, kernlab, functional

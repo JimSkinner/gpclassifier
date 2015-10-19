@@ -8,6 +8,7 @@ library(functional)
 #' up of a kernel k(x,y), a set of hyperparameters used in the kernel, and
 #' a function returning the gradient of the kernel with respect to each of the
 #' hyperparameters.
+#' @import functional
 #' @export
 CovarFun <- setClass(
   "CovarFun",
@@ -16,8 +17,16 @@ CovarFun <- setClass(
                hp="list"),    # Hyperparameters
 )
 
-## Constructors
-covarFun <- CovarFun
+setMethod(f          = "initialize",
+          signature  = "CovarFun",
+          definition = function(.Object, k, dk, hp) {
+            if (!missing(k))  .Object@k  <- k
+            if (!missing(dk)) .Object@dk <- dk
+            if (!missing(hp)) .Object@hp <- hp
+            validObject(.Object)
+            return(.Object)
+          }
+)
 
 #' Construtor method of CovarFun class
 #'
@@ -41,21 +50,19 @@ covarFun <- CovarFun
 #' @examples
 #' # Isotropic squared exponential covariance function with log length scale
 #' # (ll) hyperparameter
-#' k  = exp(-0.5 * sum(exp(-2*.Object@@hp$ll) * (x-y)^2))
+#' library("gpclassifier")
+#' k  = function(.Object, x, y) {
+#'   exp(-0.5 * sum(exp(-2*.Object@@hp$ll) * (x-y)^2))
+#' }
 #' hp = list(ll=0)
-#' dk = list(ll=.Object@@k(.Object, x, y) * exp(-2*.Object@@hp$ll)*crossprod(x-y))
-#' C  = CovarFun(k, hp, dk)
+#' dk = function(.Object, x, y) {
+#'   list(ll=.Object@@k(.Object, x, y) * exp(-2*.Object@@hp$ll)*crossprod(x-y))
+#' }
+#' C  = covarFun(k, dk, hp)
 #' @export
-setMethod(f          = "initialize",
-          signature  = "CovarFun",
-          definition = function(.Object, k, dk, hp) {
-            if (!missing(k))  .Object@k  <- k
-            if (!missing(dk)) .Object@dk <- dk
-            if (!missing(hp)) .Object@hp <- hp
-            validObject(.Object)
-            return(.Object)
-          }
-)
+covarFun <- function(k, dk, hp) {
+  return(new("CovarFun", k=k, dk=dk, hp=hp))
+}
 
 ## Getters
 
@@ -129,7 +136,7 @@ setReplaceMethod(f         = "setHP",
 #' @return covarFun augmented with lsf, lsn hyperparameterss for signal and
 #'  noise magnitude.
 #' @examples
-#' C = covarFun.LatendPlusNoise(covarFun.SE(0))
+#' C = covarFun.LatentPlusNoise(covarFun.SE(0))
 #' @export
 covarFun.LatentPlusNoise <- function(covarFun) {
   stopifnot(is(covarFun, "CovarFun"))
@@ -169,7 +176,7 @@ covarFun.LatentPlusNoise <- function(covarFun) {
 #' of the input.
 #' @return \code{CovarFun} for a squared exponential covariance function
 #' @examples
-#' C <- covarFun.se(0)
+#' C <- covarFun.SE(0)
 #' @export
 covarFun.SE <- function(ll=0) {
   k = function(.Object, x, y) { # TODO: Robust against ll=-Inf?

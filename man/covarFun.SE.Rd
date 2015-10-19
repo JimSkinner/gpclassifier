@@ -19,6 +19,6 @@ of the input.}
 Squared Exponential covariance function.
 }
 \examples{
-C <- covarFun.se(0)
+C <- covarFun.SE(0)
 }
 

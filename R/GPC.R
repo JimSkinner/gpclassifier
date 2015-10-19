@@ -1,13 +1,20 @@
-source("CovarianceFunction.R")
-source("siteParams.R")
-source("hypParams.R")
-
 ## TODO: Keep documented generics here, move (undocumented) methods into a new
 ## file.
 
 #' Class GPC.
 #'
-#' Class \code{GPC} defines a Gaussian Process Classifier.
+#' Class \code{GPC} defines a Gaussian Process Classifier. GPC(),
+#' GPC(X, Y, covarFun) creates a new GPC object used to predict labels for
+#' new input data.
+#'
+#' Covariance function hyperparameters are selected automatically through
+#' maximum likelihood. This class is implemented using the Expectation
+#' Propagation approximation detailed in (Gaussian Processes for Machine
+#' Learning, Rasmussen and Williams, 2006).
+#'
+#' @return S4 object of class GPC, where covarance function hyperparameters
+#'  have been set to their maximum likelihood estimates.
+#' @import kernlab
 #' @export
 GPC <- setClass(
   "GPC",
@@ -38,35 +45,6 @@ GPC <- setClass(
   },
 )
 
-#' Construtor method of GPC class
-#'
-#' Creates a new GPC object used to predict labels for new input data.
-#'
-#' Covariance function hyperparameters are selected automatically through
-#' maximum likelihood. This class is implemented using the Expectation
-#' Propagation approximation detailed in (Gaussian Processes for Machine
-#' Learning, Rasmussen and Williams, 2006).
-#'
-#' @param X Matrix of input data; sample in rows.
-#' @param Y Logical vector of binary labels.
-#' @param covarFun Covariance function to use. Must be of class CovarFun. If
-#'  omitted, the squared exponential covariance function is used by default.
-#'
-#' @return S4 object of class GPC, where covarance function hyperparameters
-#'  have been set to their maximum likelihood estimates.
-#'
-#' @examples
-#' # Create synthetic dataset
-#' X <- matrix(rnorm(60), ncol=2)
-#' Y <- rowSums(X^2) < 1
-#'
-#' # New GPX Object with default squared exponential covariance function.
-#' gpc <- GPC(X, Y)
-#'
-#' # Predict labels for new data
-#' Xst <- matrix(rnorm(60), ncol=2)
-#' Yst <- predict(gpc, Xst)
-#' @export
 setMethod(f          = "initialize",
           signature  = "GPC",
           definition = function(.Object, X, Y, covarFun) {
@@ -81,26 +59,38 @@ setMethod(f          = "initialize",
           }
 )
 
+#' GPC constructor
+#'
+#' Construct a new GPC object.
+#'
+#' @param X Matrix of input data; sample in rows.
+#' @param Y Logical vector of binary labels.
+#' @param covarFun Covariance function to use. Must be of class CovarFun. If
+#'  omitted, the squared exponential covariance function is used by default.
+#'
+#' @examples
+#' # Create synthetic dataset
+#' X <- matrix(rnorm(60), ncol=2)
+#' Y <- rowSums(X^2) < 1
+#'
+#' # New GPX Object with default squared exponential covariance function.
+#' gpc <- GPC(X, Y)
+#'
+#' # Predict labels for new data
+#' Xst <- matrix(rnorm(60), ncol=2)
+#' Yst <- predict(gpc, Xst)
+#' @export
+GPC <- function(X, Y, covarFun=NA) {
+  if (any(is.na(covarFun))) {
+    return(new("GPC", X, Y))
+  } else {
+    return(new("GPC", X, Y, covarFun))
+  }
+}
+
 #######################
 ## Methods
 #######################
-
-#' Calculate site parameters, likelihood and likelihood gradient using
-#' Expectation Propagation
-#' @export
-setGeneric(name="EP",
-           def=function(object) standardGeneric("EP"))
-setMethod(f         = "EP",
-          signature = "GPC",
-          def       = GPC.EP)
-
-#' Return maximum likelihood covariance function hyperparameters
-#' @export
-setGeneric(name="hpTune",
-           def=function(object) standardGeneric("hpTune"))
-setMethod(f         = "hpTune",
-          signature = "GPC",
-          def       = GPC.hpTune)
 
 #' Update \code{X}, \code{Y} or \code{covarFun}
 #'
@@ -126,7 +116,7 @@ setReplaceMethod(
       object@dlml    <- numeric(0)
       object@K       <- as.kernelMatrix(matrix(numeric(0)))
     } else {
-      setHP(object@covarFun) <- tuneHPs(object)
+      setHP(object@covarFun) <- hpTune(object)
       object@K        <- kernelMatrix(getKernel(object@covarFun), object@X)
 
       ep              <- EP(object)
@@ -139,6 +129,26 @@ setReplaceMethod(
   }
 )
 
+#' Predict labels from unlabelled data.
+#'
+#' Use a trained GPC classifier to produce label predictions of a new set of
+#' unlabelled data.
+#'
+#' @param object A fitted GPC objet
+#' @param Xst A matrix of data for which to produce label predictions
+#'
+#' @examples
+#' # Create synthetic dataset
+#' X <- matrix(rnorm(60), ncol=2)
+#' Y <- rowSums(X^2) < 1
+#'
+#' # New GPX Object with default squared exponential covariance function.
+#' gpc <- GPC(X, Y)
+#'
+#' # Predict labels for new data
+#' Xst <- matrix(rnorm(60), ncol=2)
+#' Yst <- predict(gpc, Xst)
+#' @export
 setMethod(f         = "predict",
           signature = "GPC",
           def       = function(object, Xst) {

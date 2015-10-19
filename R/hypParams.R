@@ -1,6 +1,12 @@
-library("optimx")
+#' Return maximum likelihood covariance function hyperparameters
+#' @import optimx
+#' @import memoise
+setGeneric(name="hpTune",
+           def=function(object) standardGeneric("hpTune"))
 
-GPC.hpTune <- function(object) {
+setMethod(f         = "hpTune",
+          signature = "GPC",
+          def       = function(object) {
 
   ## Information shared between objective and gradient functions
   C = getCovarFun(object)
@@ -8,8 +14,8 @@ GPC.hpTune <- function(object) {
 
   currTheta = NA
 
-  library("memoise") # TODO: Onlt remember the last 4 or so?
-  shared_function <- memoize(function(theta) { # TODO: Move all this out into a new function that calculates dlml
+  # TODO: Onlt remember the last 4 or so?
+  shared_function <- memoise(function(theta) { # TODO: Move all this out into a new function that calculates dlml
     setHP(C)        <- relist(theta, relist.template)
     object@covarFun <- C
     object@K        <- kernelMatrix(getKernel(C), object@X)
@@ -66,5 +72,4 @@ GPC.hpTune <- function(object) {
                   control = list(maximize=TRUE, starttests=FALSE,
                                  kkt=FALSE))
   return(setHP(C) <- relist(coef(optObj), relist.template))
-}
-
+})
