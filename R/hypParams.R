@@ -52,13 +52,15 @@ gpc_ppca <- function(object) {
     sigSq = exp(params[D*K + 1])
     mu    = params[(1:D)+D*K+1]
 
-    C     = tcrossprod(W) + sigSq*diag(D)
-
     # It turns out that the numeric stability gained by inverting C with a
     # cholesky decomposition is very important; enough to make the difference
     # between the optimisation succeeding/failing.
     M  = crossprod(W) + sigSq*diag(K)
-    R2 = chol(M)
+    tryCatch({
+      R2 = chol(M)
+    }, error = function(err) {
+      browser()
+    })
     LinvWt = forwardsolve(t(R2), t(W))
 
     # A stable way of calculating the log determinant of C is also important.
