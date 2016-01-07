@@ -19,20 +19,26 @@
 GPC <- setClass(
   "GPC",
   slots = c(
-    covarFun = "CovarFun",     # Covariance function
-    X        = "matrix",       # Input data
-    Y        = "logical",      # Binary labels
-    K        = "kernelMatrix", # Gram matrix for data and covariance function
-    lml      = "numeric",      # (approximate) log marginal likelihood Z_EP
-    dlml     = "numeric",      # Derivatives of lml wrt parameters
-    nu_loc   = "numeric",      # Site parameters
-    tau_loc  = "numeric",      # ""
-    tol      = "numeric"       # Tolerance for site param convergence criteria
+    covarFun  = "CovarFun",     # Covariance function
+    X         = "matrix",       # Input data
+    V         = "matrix",       # Latent representation of input data
+    Y         = "logical",      # Binary labels
+    K         = "kernelMatrix", # Gram matrix for data and covariance function
+    lml       = "numeric",      # (approximate) log marginal likelihood Z_EP
+    dlml      = "numeric",      # Derivatives of lml wrt parameters
+    nu_loc    = "numeric",      # Site parameters
+    tau_loc   = "numeric",      # ""
+    tol       = "numeric",      # Tolerance for site param convergence criteria
+    transform = "function",     # Transformation from X to V
+    theta1    = "list",         # Parameters for transformation to latent space
+    phi1      = "list"          # Hyperparameters for transformation to latent space
   ),
   prototype  = prototype(nu_loc   = numeric(0),
                          tau_loc  = numeric(0),
                          tol      = 2^-10,
-                         covarFun = covarFun.SE()),
+                         covarFun = covarFun.SE(),
+                         phi1     = list(K=2)),
+                         #k        = max(1, floor(sqrt(min(nrow(X), ncol(X))))),
   validity   = function(object) {
     if (nrow(object@X) != length(object@Y)) {
       return("Y must have the same number of elements as X (samples in rows)")
@@ -49,7 +55,13 @@ setMethod(f          = "initialize",
           signature  = "GPC",
           definition = function(.Object, X, Y, covarFun) {
             updateList = list()
-            if (!missing(X))        {updateList$X = X}
+            if (!missing(X))        {
+              updateList$X <- X
+              #updateList$V <- mvrnorm(n=nrow(X), mu=rep(0, ncol(X)),
+              #                        Sigma=diag(ncol(X)))
+              updateList$V <- mvrnorm(n=nrow(X), mu=rep(0, .Object@phi1$K),
+                                      Sigma=diag(.Object@phi1$K))
+            }
             if (!missing(Y))        {updateList$Y = Y}
             if (!missing(covarFun)) {updateList$covarFun = covarFun}
 
@@ -105,9 +117,13 @@ setReplaceMethod(
   f         = "update",
   signature = c("GPC", "list"),
   def       = function(object, value) {
-    if ('X' %in% names(value)) {object@X <- value$X}
-    if ('Y' %in% names(value)) {object@Y <- value$Y}
     if ('covarFun' %in% names(value)) {object@covarFun <- value$covarFun}
+    if ('X' %in% names(value)) {
+      object@X <- value$X
+      object@V <- value$V
+      object@K <- kernelMatrix(getKernel(object@covarFun), object@V)
+    }
+    if ('Y' %in% names(value)) {object@Y <- value$Y}
 
     if (nrow(object@X) == 0) { # No data
       object@tau_loc <- numeric(0)
@@ -116,8 +132,14 @@ setReplaceMethod(
       object@dlml    <- numeric(0)
       object@K       <- as.kernelMatrix(matrix(numeric(0)))
     } else {
-      setHP(object@covarFun) <- hpTune(object)
-      object@K        <- kernelMatrix(getKernel(object@covarFun), object@X)
+      theta <- tune(object)
+      setHP(object@covarFun) <- theta$theta2
+      object@theta1          <- theta$theta1
+      object@transform       <- theta$transform
+      object@V               <- theta$V
+
+      #setHP(object@covarFun) <- hpTune(object)
+      object@K        <- kernelMatrix(getKernel(object@covarFun), object@V)
 
       ep              <- EP(object)
       object@tau_loc  <- ep$tau_loc
@@ -160,20 +182,23 @@ setMethod(f         = "predict",
                          "as the original data"))
             }
 
+            Vst <- object@transform(Xst)
+
             # Algorithm 3.6, Rasmussen GP book.
             # Syntax used here: Xst, yst correspond to X*, y*; the data and
-            # predictive probability of a new sample.
+            # predictive probability of a new sample. Vst is V*, the latent
+            # representation of Xst.
             rootS_loc = diag(as.vector(sqrt(object@tau_loc)))
             R = chol(diag(nrow(object@X)) + rootS_loc %*% object@K %*% rootS_loc)
             z = rootS_loc %*% backsolve(R,
               forwardsolve(t(R), rootS_loc %*% object@K %*% object@nu_loc))
 
-            Yst = numeric(nrow(Xst))
-            for (xind in 1:nrow(Xst)) { # TODO: Vectorize
-              xst = Xst[xind,,drop=FALSE]
+            Yst = numeric(nrow(Vst))
+            for (vind in 1:nrow(Vst)) { # TODO: Vectorize
+              vst = Vst[vind,,drop=FALSE]
 
               ## Kernel matrix between training samples and test samples
-              Kst = kernelMatrix(getKernel(object@covarFun), xst, object@X)
+              Kst = kernelMatrix(getKernel(object@covarFun), vst, object@V)
 
               # Approximate latent variable for test input vector x*
               fst = Kst %*% (object@nu_loc-z)
@@ -181,10 +206,10 @@ setMethod(f         = "predict",
               # Variance of f*. v is just a working variable.
               # TODO: Can make crossprod(rootS_loc, Kst) more efficient bc diag
               v = forwardsolve(t(R), tcrossprod(rootS_loc, Kst))
-              fst_var = kernelMatrix(getKernel(object@covarFun), xst) - crossprod(v)
+              fst_var = kernelMatrix(getKernel(object@covarFun), vst) - crossprod(v)
 
               # Predictive class probability
-              Yst[xind] = pnorm(fst/sqrt(1+fst_var))
+              Yst[vind] = pnorm(fst/sqrt(1+fst_var))
             }
             return(Yst)
           }

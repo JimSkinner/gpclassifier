@@ -110,10 +110,10 @@ setMethod(f         = "EP",
   C   <- getCovarFun(object)
   dk  <- getKernelGrad(C)
   nHP <- length(unlist(getHP(C)))
-  dK  <- array(0, dim=c(nHP, nrow(X), nrow(X)))
-  for (i in 1:nrow(X)) {
+  dK  <- array(0, dim=c(nHP, nrow(V), nrow(V)))
+  for (i in 1:nrow(V)) {
     for (j in 1:i) {
-      gradList <- dk(X[i,], X[j,])
+      gradList <- dk(V[i,], V[j,])
       gradVec  <- unlist(gradList)
       dK[,i,j] <- dK[,j,i] <- gradVec
     }
