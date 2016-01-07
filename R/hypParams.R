@@ -57,11 +57,9 @@ gpc_ppca <- function(object) {
     # It turns out that the numeric stability gained by inverting C with a
     # cholesky decomposition is very important; enough to make the difference
     # between the optimisation succeeding/failing.
-    tryCatch({
-      R = chol(C)
-    }, error = function(err) {
-      browser()
-    })
+    M  = crossprod(W) + sigSq*diag(K)
+    R2 = chol(M)
+    LinvWt = forwardsolve(t(R2), t(W))
 
     # A stable way of calculating the log determinant of C is also important.
     logDetC = sum(log(c(svd(W)$d^2, rep(0, D-K)) + rep(sigSq, D)))
@@ -69,8 +67,8 @@ gpc_ppca <- function(object) {
     .a = -N*D*0.5*log(2*pi)
     .b = -N*0.5*logDetC
     .c = -0.5*sum(apply(X, 1, function(x) {
-      crossprod(forwardsolve(t(R), x-mu))
-    }))
+      crossprod(x-mu) - crossprod(LinvWt%*%(x-mu))
+    }))/sigSq
     logLik_ppca = .a + .b + .c
 
     ## Calculate GPC likelihood
