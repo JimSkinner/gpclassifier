@@ -55,9 +55,11 @@ setMethod(f         = "EP",
                       ) * crossprod(Sigma_g[i, , drop = FALSE])
       mu_g          = Sigma_g %*% nu_loc
 
+      tryCatch({
       if (Z_loc==0) {
         stop("Cannot determine site parameters here; local marginal likelihood is 0")
       }
+      }, error=function(err) {browser})
     }
 
     rootS_loc = diag(as.vector(sqrt(tau_loc)))
@@ -97,8 +99,8 @@ setMethod(f         = "EP",
   # Implementation of Algorithm 5.2 from Rasmussen (Secion 5.5)
 
   # TODO: Check these are the same, and which is faster.
-  #R         = chol(diag(nrow(X)) + rootS_loc %*% K %*% rootS_loc)
-  #R2        = chol(diag(nrow(X)) +
+  #R         = chol(diag(nrow(object@X)) + rootS_loc %*% K %*% rootS_loc)
+  #R2        = chol(diag(nrow(object@X)) +
   #                 tcrossprod(sqrt(object@siteParams$tau_loc))*K)
   b = nu_loc -
       rootS_loc %*% backsolve(R,
@@ -110,10 +112,10 @@ setMethod(f         = "EP",
   C   <- getCovarFun(object)
   dk  <- getKernelGrad(C)
   nHP <- length(unlist(getHP(C)))
-  dK  <- array(0, dim=c(nHP, nrow(X), nrow(X)))
-  for (i in 1:nrow(X)) {
+  dK  <- array(0, dim=c(nHP, nrow(object@X), nrow(object@X)))
+  for (i in 1:nrow(object@X)) {
     for (j in 1:i) {
-      gradList <- dk(X[i,], X[j,])
+      gradList <- dk(object@X[i,], object@X[j,])
       gradVec  <- unlist(gradList)
       dK[,i,j] <- dK[,j,i] <- gradVec
     }
