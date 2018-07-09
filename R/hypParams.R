@@ -64,12 +64,14 @@ setMethod(f         = "hpTune",
 #  lines(x, dy3, col='red')
 #  lines(range(x), c(0,0), lty=2, col='grey')
 #  browser()
-  optObj = optimx(par     = theta0,
-                  fn      = objective_function,
-                  gr      = gradient_function,
-                  method  = 'CG',
-                  hessian = FALSE,
-                  control = list(maximize=TRUE, starttests=FALSE,
-                                 kkt=FALSE))
+  unused <- capture.output({
+    optObj <- optimx(par     = theta0,
+                     fn      = objective_function,
+                     gr      = gradient_function,
+                     method  = 'CG',
+                     hessian = FALSE,
+                     control = list(maximize=TRUE, starttests=FALSE,
+                                    kkt=FALSE))
+  })
   return(setHP(C) <- relist(coef(optObj), relist.template))
 })
